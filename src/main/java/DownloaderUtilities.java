@@ -190,7 +190,6 @@ public class DownloaderUtilities
                 // hierarchy locally when downloading a website.
                 if (isHTML(address))
                 {
-                    System.out.println("Entering fixLinks for: " + address);
                     localizeLink(element, address);
                 }
             }
@@ -301,43 +300,6 @@ public class DownloaderUtilities
         return true;
     }
 
-    //TODO PROBABLY DELETE
-    private static String relativeURLToAbsolute(String relativeURL, String currentURL)
-    {
-        String absoluteURL = null;
-        if (urlRootDir == null)
-        {
-            try
-            {
-                URL url = new URL(baseURL);
-                urlRootDir = HTTP + url.getHost();
-            } catch (MalformedURLException e) {
-                e.printStackTrace();
-            }
-        }
-        // We should consider two cases
-        // 1. The address is relative to the root of the site
-        // 2. The address is relative to the current path
-        if (relativeURL.startsWith("/")) // case 1.
-        {
-            // Get the root directory of the website and append the relative URL
-            if (urlRootDir.endsWith("/"))
-            {
-                System.out.println("(relativeURLToAbsolute) Returning abs: " + urlRootDir.substring(0, urlRootDir.length()-2) + relativeURL);
-                return urlRootDir.substring(0, urlRootDir.length()-2) + relativeURL;
-            }
-            else
-            {
-                System.out.println("(relativeURLToAbsolute) Returning abs: " + urlRootDir + relativeURL);
-                return urlRootDir + relativeURL;
-            }
-        }
-        else // case 2.
-        {
-        }
-        return absoluteURL;
-    }
-
     /**
      * This method is passed a URL address and from it it derives the appropriate file name for storing that URL
      * @param address URL address from which the file we are saving to disk originated from.
@@ -354,11 +316,6 @@ public class DownloaderUtilities
             System.out.print("(getFileName) changing address from: " + address);
             address = renameMap.get(address);
             System.out.println(" to --> " + address);
-        }
-        else
-        {
-            //System.out.println(address.substring(lastSlashIndex));
-            //System.out.println("NO change for " + address);
         }
 
         int lastSlashIndex = address.lastIndexOf('/');
