@@ -3,9 +3,11 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.file.Paths;
 import java.util.HashMap;
 
 public class DownloaderUtilities
@@ -15,11 +17,10 @@ public class DownloaderUtilities
         DownloaderUtilities.baseURL = baseURL;
     }
 
-    private static String urlRootDir = null;
-
     private static String baseURL = null;
     private static final String HTTP = "http://";
     private static final String HTTPS = "https://";
+    private static final String INDEX_HTML = "index.html";
     private static final String CONTENT_TYPE_HTML = "text/html";
 
     public static final HashMap<String, String> changeMap = new HashMap<>();
@@ -238,7 +239,8 @@ public class DownloaderUtilities
         // If so, then this address is a directory that also serves HTML content and
         // The HTML content will get saved inside that directory as "index.html"
         // Otherwise: append .html to link
-        if (isDirectory(address)) {
+        if (isDirectory(address))
+        {
             System.out.println("The following address is deemed a directory: " + address);
             System.out.println("\t The href is: " + currentHref);
             if (!address.endsWith("/"))
@@ -249,9 +251,9 @@ public class DownloaderUtilities
             }
             else
             {
-                element.attr("href", currentHref + "index.html");
-                renameMap.put(address, address + "index.html");
-                changeMap.put(address, address + ".index.html");
+                element.attr("href", currentHref + INDEX_HTML);
+                renameMap.put(address, address + INDEX_HTML);
+                changeMap.put(address, address + INDEX_HTML);
             }
             //System.out.println("\t The href has been changed to: " + element.attr("href"));
             //System.out.println("\t The address has been renamed from: " + address  + " to -> (see below)");
@@ -264,16 +266,18 @@ public class DownloaderUtilities
             renameMap.put(address, address + ".html");
             changeMap.put(address, address + ".html");
         }
-        else
-        {
-            System.out.println("(fixLinks) GOT INTO THE ELSE BRANCH WITH ADDRESS: " + address);
-            // Some weird link with absolute address, the difference with the above cases is converting the relative url to absolute url
-        }
     }
 
-    // This is not great, but I could not figure out any other way to fix this ... probably spent around 16hrs thinking...
+    /**
+     * Takes an URL address string and tests whether the address string is a directory that also happens to serve
+     * HTML content.
+     * @param address   URL address string
+     * @return          True if the address string is a directory.
+     */
     private static boolean isDirectory(String address)
     {
+        // This is not great, but I could not figure out any other way to fix this ... probably spent around 16hrs thinking...
+
         if (address.endsWith("/"))
         {
             return true;
@@ -301,39 +305,33 @@ public class DownloaderUtilities
     }
 
     /**
-     * This method is passed a URL address and from it it derives the appropriate file name for storing that URL
+     * Derives the appropriate file name for storing a file that originates from the address string.
      * @param address URL address from which the file we are saving to disk originated from.
      * @return        Appropriate file name for storing the file on disk.
      */
     public static String getFileName(String address)
     {
-        // What are we missing?
-        // A mapping from absolute addresses of urls we modified to the changed url's
-
         String fileName = null;
         if (renameMap.containsKey(address))
         {
-            System.out.print("(getFileName) changing address from: " + address);
             address = renameMap.get(address);
-            System.out.println(" to --> " + address);
         }
-
         int lastSlashIndex = address.lastIndexOf('/');
-
-        if (lastSlashIndex == -1) return "ERROR " + address; // TODO DEBUG
-
         if (lastSlashIndex == address.length() - 1)
         {
-            return "index.html";
+            return INDEX_HTML;
         }
-        System.out.println(address + "-->"  + address.substring(lastSlashIndex));
+        //System.out.println(address + "-->"  + address.substring(lastSlashIndex));
         return address.substring(lastSlashIndex);
     }
 
-    public static String getPath(String address)
+    /**
+     * Derives the appropriate local path of storing a file that originates from the address string.
+     * @param address   URL address from which we derive local path.
+     * @return          String path relative to the root of our download directory.
+     */
+    public static String getPath(String address) // TODO This is not portable on windows "\" ...
     {
-        String path = null;
-
         if (renameMap.containsKey(address))
         {
             address = renameMap.get(address);
@@ -341,7 +339,24 @@ public class DownloaderUtilities
 
         int lastSlashIndex = address.lastIndexOf('/');
         System.out.println(address.substring(0, lastSlashIndex));
-        path = address.substring(0, lastSlashIndex);
-        return getURLWithoutSchema(path);
+        String stringPath = getURLWithoutSchema(address.substring(0, lastSlashIndex));
+
+        if (stringPath == null)
+        {
+            return null;
+        }
+
+        // I forgot about Windows... good thing I remembered
+        String path = null;
+        if (!File.separator.equals("/"))
+        {
+            path = stringPath.replaceAll("/", File.separator);
+        }
+        else
+        {
+            path = stringPath;
+        }
+
+        return path;
     }
 }

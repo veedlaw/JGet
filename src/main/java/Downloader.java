@@ -46,7 +46,7 @@ public class Downloader
     /**
      * Downloads a single file from an address. The file is saved to disk.
      * If the file is an HTML document, it is then searched for links.
-     * @param address An URL address from which we wish to download from.
+     * @param address   An URL address from which we wish to download from.
      */
     private static void download(String address)
     {
@@ -159,8 +159,8 @@ public class Downloader
             return;
         }
         //runDownload(url, "/Users/kasutaja/Desktop/jsoup/");
-        //runDownload("https://d3s.mff.cuni.cz/", "/Users/kasutaja/Desktop/jsoup");
-        runDownload("https://iuuk.mff.cuni.cz/~ipenev/", "/Users/kasutaja/Desktop/jsoup");
+        runDownload("https://d3s.mff.cuni.cz/teaching/nprg013/", "/Users/kasutaja/Desktop/jsoup");
+        //runDownload("https://iuuk.mff.cuni.cz/~ipenev/", "/Users/kasutaja/Desktop/jsoup");
     }
 
     /**
