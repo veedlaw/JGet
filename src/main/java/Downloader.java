@@ -8,10 +8,10 @@ import org.jsoup.nodes.Document;
 public class Downloader
 {
     private static String baseURL; // The url that is initially passed by the user
-    private static String rootDir; // Directory in which files are downloaded to
+    private static String rootDir; // Directory to which files are downloaded to
 
-    private static final Queue<String> discoveredURLs = new ArrayDeque<>();
-    private static Set<String> visitedURLs = new HashSet<>();
+    private static final Queue<String> discoveredURLs = new ArrayDeque<>(); // URLs which are yet to be downloaded
+    private static final Set<String> visitedURLs = new HashSet<>();
 
     private static int maxDepth = -1;
     private static final long maxFileSize = 0;
@@ -39,6 +39,11 @@ public class Downloader
         }
     }
 
+    /**
+     * Downloads a single file from an address. The file is saved to disk.
+     * If the file is an HTML document, it is then searched for links.
+     * @param address An URL address from which we wish to download from.
+     */
     private static void download(String address)
     {
         visitedURLs.add(address);
@@ -50,8 +55,9 @@ public class Downloader
                 DownloaderUtilities.discoverURLs(htmlDocument);
                 downloadHTML(htmlDocument, address);
             }
-            else
+            else // We were unable to fetch the document
             {
+                // Since we were unable to fetch the HTML document, we will download the file manually
                 //downloadNonHTML(address)
             }
         }
@@ -59,13 +65,13 @@ public class Downloader
         {
             //downloadNonHTML(address);
         }
-
     }
 
     /**
      * Saves the JSoup object htmlDocument to disk.
      * Additional processing may be necessary when dealing with tricky urls.
-     * @param htmlDocument A JSoup Document object which we will be saving to the disk
+     * @param htmlDocument A JSoup Document object which we will be saving to the disk.
+     * @param address The URL address from which the HTML document originates, used for file name derivation purposes.
      */
     private static void downloadHTML(Document htmlDocument, String address)
     {
@@ -73,34 +79,21 @@ public class Downloader
         // Save document to disk
         // The folder we are saving to is the name of the url
         String fileName = DownloaderUtilities.getFileName(address);
+        String path = DownloaderUtilities.getPath(address);
+        System.out.println("PATH:::::::: " + path);
+        System.out.println("Preparing to save file: " + fileName);
 
         try
         {
-            String p = null;
-            p = DownloaderUtilities.getURLWithoutSchema(address);
-            String path = null;
-
-            System.out.println("WITHOUT SCHEMA: " + p);
-            if (p == null)
-            {
-                System.out.println("p == null --> " + DownloaderUtilities.changeMap.get(address));
-                p = DownloaderUtilities.getURLWithoutSchema(DownloaderUtilities.changeMap.get(address));
-            }
-
-                path = (p.substring(0, p.lastIndexOf('/')));
-            System.out.println("path var = " + path);
-            //System.out.println(Paths.get(rootDir, path, fileName).toString() + " created directory");
             Files.createDirectories(Paths.get(rootDir, path));
-            Files.writeString(Paths.get(rootDir,path, fileName), htmlDocument.html(), htmlDocument.charset());
+            Files.writeString(Paths.get(rootDir, path, fileName), htmlDocument.html(), htmlDocument.charset());
         }
         catch (IOException e)
         {
             e.printStackTrace();
         }
+        System.out.println();
     }
-
-
-
 
     private static void downloadNonHTML(String address)
     {
@@ -118,8 +111,8 @@ public class Downloader
             System.out.println("Please prefix the url with scheme \"http://\" and try again");
             return;
         }
-        //runDownload(url, "/Users/kasutaja/Desktop/jsoup/");
-    runDownload("https://d3s.mff.cuni.cz/teaching/nprg013/", "/Users/kasutaja/Desktop/jsoup");
+        runDownload(url, "/Users/kasutaja/Desktop/jsoup/");
+        //runDownload("https://d3s.mff.cuni.cz/teaching/nprg013/", "/Users/kasutaja/Desktop/jsoup");
     }
 
     /**
