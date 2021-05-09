@@ -1,4 +1,8 @@
+import java.io.BufferedInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
+import java.net.URLConnection;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
@@ -58,12 +62,13 @@ public class Downloader
             else // We were unable to fetch the document
             {
                 // Since we were unable to fetch the HTML document, we will download the file manually
-                //downloadNonHTML(address)
+                System.out.println("downloading manually");
+                downloadNonHTML(address);
             }
         }
         else
         {
-            //downloadNonHTML(address);
+            downloadNonHTML(address);
         }
     }
 
@@ -97,7 +102,49 @@ public class Downloader
 
     private static void downloadNonHTML(String address)
     {
-        System.out.println("DUMMY downloading address: " + address);
+        long maxFileSize = 1048576; // bytes
+        URLConnection connection = null;
+        try
+        {
+            connection = (new URL(address)).openConnection();
+            if (connection.getContentLengthLong() > maxFileSize)
+            {
+                System.out.println("not downloading from " + address + " because it is over maxFileSize");
+                return;
+            }
+        }
+        catch (IOException e)
+        {
+            e.printStackTrace();
+            return;
+        }
+
+        try (InputStream urlConnectionInputStream = new BufferedInputStream(connection.getInputStream()))
+        {
+            // transfer file directly to disk
+            System.out.println("executing non-html download");
+            String fileName = DownloaderUtilities.getFileName(address);
+            String path = DownloaderUtilities.getPath(address);
+            /*String dir = "";
+            dir = address.substring(baseURL.length());
+
+            dir = dir.substring(0, dir.lastIndexOf('/'));
+
+            if (dir.equals("/"))
+                dir = "";
+            System.out.println("DIRECTORY IS: " + Paths.get(rootDir, dir));
+            System.out.println(Paths.get(rootDir, dir));
+*/
+            Files.createDirectories(Paths.get(rootDir, path));
+            Files.copy(urlConnectionInputStream, Paths.get(rootDir, path, fileName));
+
+            //System.out.println("done");
+
+        }
+        catch (IOException e)
+        {
+            System.out.println(e);
+        }
     }
 
 
@@ -111,8 +158,9 @@ public class Downloader
             System.out.println("Please prefix the url with scheme \"http://\" and try again");
             return;
         }
-        runDownload(url, "/Users/kasutaja/Desktop/jsoup/");
-        //runDownload("https://d3s.mff.cuni.cz/teaching/nprg013/", "/Users/kasutaja/Desktop/jsoup");
+        //runDownload(url, "/Users/kasutaja/Desktop/jsoup/");
+        //runDownload("https://d3s.mff.cuni.cz/", "/Users/kasutaja/Desktop/jsoup");
+        runDownload("https://iuuk.mff.cuni.cz/~ipenev/", "/Users/kasutaja/Desktop/jsoup");
     }
 
     /**

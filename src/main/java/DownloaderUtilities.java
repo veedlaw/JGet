@@ -221,12 +221,13 @@ public class DownloaderUtilities
     private static void fixLink(Element element, String address) {
         String currentHref = element.attr("href");
         System.out.println("Current HREF is " + currentHref + " on address " + address);
+        if (!hasAmbiguousSuffix(currentHref))
+            return;
 
         // Check if appending "/" to address still gives us a valid link
         // If so, then this address is a directory that also serves HTML content and
         // The HTML content will get saved inside that directory as "index.html"
         // Otherwise: append .html to link
-
         if (isDirectory(address)) {
             System.out.println("The following address is deemed a directory: " + address);
             System.out.println("\t The href is: " + currentHref);
@@ -242,9 +243,9 @@ public class DownloaderUtilities
                 renameMap.put(address, address + "index.html");
                 changeMap.put(address, address + ".index.html");
             }
-            System.out.println("\t The href has been changed to: " + element.attr("href"));
-            System.out.println("\t The address has been renamed from: " + address  + " to -> (see below)");
-            System.out.println("\t\t\t\t " + renameMap.get(address));
+            //System.out.println("\t The href has been changed to: " + element.attr("href"));
+            //System.out.println("\t The address has been renamed from: " + address  + " to -> (see below)");
+            //System.out.println("\t\t\t\t " + renameMap.get(address));
         }
         else if (getURLWithoutSchema(currentHref) == null) // means no http protocol prefix, so we can infer relative link
         {
@@ -346,7 +347,7 @@ public class DownloaderUtilities
         else
         {
             //System.out.println(address.substring(lastSlashIndex));
-            System.out.println("NO change for " + address);
+            //System.out.println("NO change for " + address);
         }
 
         int lastSlashIndex = address.lastIndexOf('/');
