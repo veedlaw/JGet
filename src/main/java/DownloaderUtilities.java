@@ -156,8 +156,8 @@ public class DownloaderUtilities
     /**
      * A helper method for discoverURLs.
      * The method is passed a JSoup document, a JSoup Elements object, which contains Element objects in which we search
-     *  for links, and an attribute key which specifies which part of the html element holds an URL address. Populates the
-     *  queue with new addresses that are extracted.
+     * for links, and an attribute key which specifies which part of the html element holds an URL address. Populates the
+     * queue with new addresses that are extracted.
      * @param htmlDocument  A JSoup document from which the method tries to find links from.
      * @param elements      A list of HTML Elements in which we looks for links.
      * @param attrKey       Specifies attributeKey for extracting link from an element.
@@ -169,10 +169,10 @@ public class DownloaderUtilities
         {
             // An URL address is found some attribute of the html element. An appropriate attribute is selected via attrKey.
             address = element.attr(attrKey);
-            //System.out.println("\t extracted address: " + address);
+            System.out.println("\t extracted address: " + address + " href=" + element.attr("href"));
             if (changeMap.containsKey(address)) //TODO please don't forget to double check
             {
-                fixLink(element, address); // changes the element in htmlDocument
+                localizeLink(element, address); // changes the element in htmlDocument
             }
 
             if (mayBeVisited(address))
@@ -184,14 +184,14 @@ public class DownloaderUtilities
                 // If this webpage were to have the following structure: "http://www.example.com/mypage/pictures/picture1.png",
                 // then we would first download and create a file "mypage", however this will leave us unable to later
                 // create a directory "mypage/pictures/" as "mypage" is already a file.
-                // To preserve website consistency, whenever such situation is detected, we modify the the underlying HTML
+                // To preserve website consistency, whenever such situation is detected, we modify the underlying HTML
                 // such that in our local copy, all links to "mypage" are directed to "mypage/index.html". The file is then
                 // saved in the directory "mypage" with the filename "index.html" This allows us to preserve website
                 // hierarchy locally when downloading a website.
-                if (isHTML(address) && hasAmbiguousSuffix(address))
+                if (isHTML(address))
                 {
                     System.out.println("Entering fixLinks for: " + address);
-                    fixLink(element, address);
+                    localizeLink(element, address);
                 }
             }
         }
@@ -211,16 +211,27 @@ public class DownloaderUtilities
         return true;
     }
 
+
     /**
      * Key challenges to address:
      * 1) The url in the current document must be redirected
      * 2) The url in future documents must be redirected --> each document we store to disk must be checked for urls?
      * 3) These changes must be propagated to directory structure
+     *
+     * makes the links point relatively to our local folder structure
+     *
      * @param address
      */
-    private static void fixLink(Element element, String address) {
+    private static void localizeLink(Element element, String address) {
         String currentHref = element.attr("href");
         System.out.println("Current HREF is " + currentHref + " on address " + address);
+
+        if (currentHref.startsWith(baseURL)) // means that our href is absolute, we must localize it.
+        {
+            String newHref = currentHref.substring(baseURL.length());
+            element.attr("href", newHref);
+        }
+
         if (!hasAmbiguousSuffix(currentHref))
             return;
 
