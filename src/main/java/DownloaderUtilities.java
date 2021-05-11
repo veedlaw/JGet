@@ -7,8 +7,8 @@ import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.nio.file.Paths;
 import java.util.HashMap;
+import java.util.HashSet;
 
 public class DownloaderUtilities
 {
@@ -18,12 +18,19 @@ public class DownloaderUtilities
     }
 
     private static String baseURL = null;
+
+    public static void setRootDir(String rootDir) {
+        DownloaderUtilities.rootDir = rootDir;
+    }
+
+    private static String rootDir = null;
     private static final String HTTP = "http://";
     private static final String HTTPS = "https://";
     private static final String INDEX_HTML = "index.html";
     private static final String CONTENT_TYPE_HTML = "text/html";
 
-    public static final HashMap<String, String> changeMap = new HashMap<>();
+    private static HashSet<String> htmlAddresses = new HashSet<>();
+
     // Used as a mapping between URLs and local URLs (preserving directory structure)
     public static final HashMap<String, String> renameMap = new HashMap<>();
 
@@ -58,12 +65,19 @@ public class DownloaderUtilities
      */
     public static boolean isHTML(String address)
     {
+        if (htmlAddresses.contains(address)) // testing in our cached addresses
+        {
+            return true;
+        }
+
         String receivedContentType;
         try
         {
+            System.out.println("(isHTML) address is " + address);
             String contentTypeResponse = ((new URL(address)).openConnection()).getContentType();
             if (contentTypeResponse == null || contentTypeResponse.length() < CONTENT_TYPE_HTML.length())
             {
+                System.out.println("RETURNING FASLE, because: " + contentTypeResponse);
                 return false;
             }
 
@@ -71,10 +85,18 @@ public class DownloaderUtilities
         }
         catch (IOException e)
         {
+            System.out.println("IOEXception occurred on: " + address);
             return false;
         }
+        System.out.println("Returning: " + CONTENT_TYPE_HTML + " == " + receivedContentType + " = " + CONTENT_TYPE_HTML.equals(receivedContentType));
+        boolean isHtml = CONTENT_TYPE_HTML.equals(receivedContentType);
+        if (isHtml)
+        {
+            htmlAddresses.add(address);
+        }
 
-        return CONTENT_TYPE_HTML.equals(receivedContentType);
+
+        return isHtml;
     }
 
     /**
@@ -98,7 +120,7 @@ public class DownloaderUtilities
     }
 
     /**
-     * Checks the eligibility of adding some link to the download queue.
+     * Checks the eligibility of adding some address string to the download queue.
      * @param address   URL address which we wish to check.
      * @return          True if the address may be added to the download queue.
      */
@@ -115,9 +137,7 @@ public class DownloaderUtilities
      */
     public static boolean isOnSameDomain(String baseURL, String address)
     {
-        //TODO figure out what I was doing here
-        // If the url is shorter than the baseurl then it surely does not have it as prefix
-        if (address.length() < baseURL.length())
+        if (address.length() < baseURL.length()) // accounts for differences such as "www.example.com/" and "www.example.com"
         {
             if ((address.length() - baseURL.length()) == -1) // -1 accounts for optional '/' suffix
             {
@@ -130,17 +150,16 @@ public class DownloaderUtilities
 
     /**
      *  The method is passed a JSoup Document, a JSoup Elements object, which contains Element objects in which we search
-     *  for links, and an attribute key which specifies which part of the html element holds a URL address. Implicitly
+     *  for links, and an attribute key which specifies which part of the HTML element holds a URL address. Implicitly
      *  populates the queue with new addresses that are extracted from the elements in the process via a helper method.
      * @param htmlDocument  A JSoup document in which links are searched for.
      */
     public static void discoverURLs(Document htmlDocument)
     {
-        System.out.println("Starting link discovery from HTML document ... ");
         // Elements that contain outgoing links that we are looking to follow:
         Elements[] outgoingElements = new Elements[] {
                 htmlDocument.select("a[href]"),
-                htmlDocument.select("[src]"),
+                htmlDocument.select("img"),
                 htmlDocument.select("link[href]")
         };
 
@@ -148,7 +167,9 @@ public class DownloaderUtilities
         {
             String type = null;
             if (!elements.isEmpty())
+            {
                 type = elements.get(0).tag().toString();
+            }
             // Comparison checks whether the destination is an image or a normal link and sets the attributeKey accordingly.
             discoverLinksFromHTMLElements(htmlDocument, elements, "img".equals(type) ? "abs:src" : "abs:href");
         }
@@ -171,14 +192,22 @@ public class DownloaderUtilities
             // An URL address is found some attribute of the html element. An appropriate attribute is selected via attrKey.
             address = element.attr(attrKey);
             System.out.println("\t extracted address: " + address + " href=" + element.attr("href"));
-            if (changeMap.containsKey(address)) //TODO please don't forget to double check
+            if (renameMap.containsKey(address))
             {
-                localizeLink(element, address); // changes the element in htmlDocument
+                localizeLink(element, address, attrKey); // changes the element in htmlDocument
             }
 
             if (mayBeVisited(address))
             {
-                Downloader.enqueueURL(address);
+                boolean isHashHref = element.attr("href").startsWith("#");
+                // "hash href-s" are local href-s within the same page - they navigate to different HTML elements and
+                // as such, they are not valid links to download.
+                if (! isHashHref)
+                {
+                    Downloader.enqueueURL(address);
+                    localizeLink(element, address, attrKey);
+
+                }
 
                 // An annoying edge case is addressed here:
                 // Suppose we have some webpage "http://www.example.com/mypage" that serves html content.
@@ -189,10 +218,10 @@ public class DownloaderUtilities
                 // such that in our local copy, all links to "mypage" are directed to "mypage/index.html". The file is then
                 // saved in the directory "mypage" with the filename "index.html" This allows us to preserve website
                 // hierarchy locally when downloading a website.
-                if (isHTML(address))
+                /*if (isHTML(address))
                 {
                     localizeLink(element, address);
-                }
+                }*/
             }
         }
     }
@@ -222,49 +251,66 @@ public class DownloaderUtilities
      *
      * @param address
      */
-    private static void localizeLink(Element element, String address) {
-        String currentHref = element.attr("href");
-        System.out.println("Current HREF is " + currentHref + " on address " + address);
+    private static void localizeLink(Element element, String address, String attrKey) {
+        attrKey = attrKey.substring("abs:".length());
+
+        String currentHref = element.attr(attrKey);
+        //System.out.println("Current HREF is " + currentHref + " on address " + address);
+
+        if (currentHref.startsWith("/")) // means that the href is relative to the root of the URL
+        {
+            //System.out.println("Absolute URL href: " + currentHref);
+            element.attr(attrKey, currentHref.substring(1)); // exclude the slash for localization purposes
+            currentHref = element.attr(attrKey);
+        }
 
         if (currentHref.startsWith(baseURL)) // means that our href is absolute, we must localize it.
         {
             String newHref = currentHref.substring(baseURL.length());
-            element.attr("href", newHref);
+            element.attr(attrKey, newHref);
         }
 
         if (!hasAmbiguousSuffix(currentHref))
+        {
             return;
-
-        // Check if appending "/" to address still gives us a valid link
-        // If so, then this address is a directory that also serves HTML content and
-        // The HTML content will get saved inside that directory as "index.html"
-        // Otherwise: append .html to link
-        if (isDirectory(address))
-        {
-            System.out.println("The following address is deemed a directory: " + address);
-            System.out.println("\t The href is: " + currentHref);
-            if (!address.endsWith("/"))
-            {
-                element.attr("href", currentHref + "/index.html");
-                renameMap.put(address, address + "/index.html");
-                changeMap.put(address, address + "/index.html");
-            }
-            else
-            {
-                element.attr("href", currentHref + INDEX_HTML);
-                renameMap.put(address, address + INDEX_HTML);
-                changeMap.put(address, address + INDEX_HTML);
-            }
-            //System.out.println("\t The href has been changed to: " + element.attr("href"));
-            //System.out.println("\t The address has been renamed from: " + address  + " to -> (see below)");
-            //System.out.println("\t\t\t\t " + renameMap.get(address));
         }
-        else if (getURLWithoutSchema(currentHref) == null) // means no http protocol prefix, so we can infer relative link
+
+        if (isHTML(address))
         {
-            // Already assumed that the address has an ambiguous suffix, so we are safe to append .html to it
-            element.attr("href", currentHref + ".html");
-            renameMap.put(address, address + ".html");
-            changeMap.put(address, address + ".html");
+            if (isDirectory(address))
+            {
+                //System.out.println("The following address is deemed a directory: " + address);
+                //System.out.println("\t The href is: " + currentHref);
+                if (!address.endsWith("/"))
+                {
+                    element.attr("href", currentHref + "/" + INDEX_HTML);
+                    renameMap.put(address, address + "/" + INDEX_HTML);
+                }
+                else
+                {
+                    element.attr("href", currentHref + INDEX_HTML);
+                    renameMap.put(address, address + INDEX_HTML);
+                }
+                //System.out.println("\t The href has been changed to: " + element.attr("href"));
+                //System.out.println("\t The address has been renamed from: " + address  + " to -> (see below)");
+                //System.out.println("\t\t\t\t " + renameMap.get(address));
+            }
+            else if (getURLWithoutSchema(currentHref) == null)
+            {
+                // Already assumed that the address has an ambiguous suffix, so we are safe to append .html to it
+                element.attr("href", currentHref + ".html");
+                renameMap.put(address, address + ".html");
+            }
+        }
+    }
+
+    private static void localizeMedia(Element element, String address)
+    {
+        String currentSrc = element.attr("src");
+        if (currentSrc.startsWith("/"))
+        {
+            element.attr("src", currentSrc.substring(1));
+            currentSrc = element.attr("src");
         }
     }
 
@@ -317,6 +363,12 @@ public class DownloaderUtilities
             address = renameMap.get(address);
         }
         int lastSlashIndex = address.lastIndexOf('/');
+        // TODO double check
+        if (lastSlashIndex == 6 || lastSlashIndex == 7 ) // means that the slash we discovered is in the http(s) part of the url
+        {
+            // We can "append an imaginary" slash at the end of the url
+            return INDEX_HTML;
+        }
         if (lastSlashIndex == address.length() - 1)
         {
             return INDEX_HTML;
@@ -330,7 +382,7 @@ public class DownloaderUtilities
      * @param address   URL address from which we derive local path.
      * @return          String path relative to the root of our download directory.
      */
-    public static String getPath(String address) // TODO This is not portable on windows "\" ...
+    public static String getPath(String address)
     {
         if (renameMap.containsKey(address))
         {
@@ -338,9 +390,18 @@ public class DownloaderUtilities
         }
 
         int lastSlashIndex = address.lastIndexOf('/');
-        System.out.println(address.substring(0, lastSlashIndex));
-        String stringPath = getURLWithoutSchema(address.substring(0, lastSlashIndex));
 
+        if (lastSlashIndex == 6 || lastSlashIndex == 7 ) // means that the slash we discovered is in the http(s) part of the url
+        {
+            // We can "append an imaginary" slash at the end of the url
+            lastSlashIndex = address.length();
+        }
+
+        //System.out.println("lastslashindex: " + lastSlashIndex);
+        //System.out.println(address.substring(0, lastSlashIndex));
+        String stringPath = getURLWithoutSchema(address.substring(0, lastSlashIndex));
+        //System.out.println(address.substring(0, lastSlashIndex));
+        //System.out.println("String path: " + stringPath);
         if (stringPath == null)
         {
             return null;
