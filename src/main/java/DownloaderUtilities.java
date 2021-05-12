@@ -20,12 +20,7 @@ public class DownloaderUtilities
 
     private static String baseURL = null;
 
-    public static void setRootDir(String rootDir) {
-        DownloaderUtilities.rootDir = rootDir;
-    }
-
-    private static String rootDir = null;
-    private static final String HTTP = "http://";
+    public static final String HTTP = "http://";
     private static final String HTTPS = "https://";
     private static final String INDEX_HTML = "index.html";
     private static final String CONTENT_TYPE_HTML = "text/html";
@@ -54,6 +49,16 @@ public class DownloaderUtilities
         }
 
         return null;
+    }
+
+    /**
+     * Checks whether the passed address is prefixed with either "http://" or "https://".
+     * @param address   Address string
+     * @return True if the address string is prefixed with either "http://" or "https://", false otherwise.
+     */
+    public static boolean hasHTTPsProtocol(String address)
+    {
+        return address.startsWith(HTTP) || address.startsWith(HTTPS);
     }
 
     /**
@@ -169,7 +174,7 @@ public class DownloaderUtilities
                 type = elements.get(0).tag().toString();
             }
             // Comparison checks whether the destination is an image or a normal link and sets the attributeKey accordingly.
-            discoverLinksFromHTMLElements(htmlDocument, elements, "img".equals(type) ? "abs:src" : "abs:href");
+            discoverLinksFromHTMLElements(elements, "img".equals(type) ? "abs:src" : "abs:href");
         }
     }
 
@@ -178,11 +183,10 @@ public class DownloaderUtilities
      * The method is passed a JSoup document, a JSoup Elements object, which contains Element objects in which we search
      * for links, and an attribute key which specifies which part of the html element holds an URL address. Populates the
      * queue with new addresses that are extracted.
-     * @param htmlDocument  A JSoup document from which the method tries to find links from.
      * @param elements      A list of HTML Elements in which we looks for links.
      * @param attrKey       Specifies attributeKey for extracting link from an element.
      */
-    private static void discoverLinksFromHTMLElements(Document htmlDocument, Elements elements, String attrKey)
+    private static void discoverLinksFromHTMLElements(Elements elements, String attrKey)
     {
         String address; // Will be reused and assigned addresses which are discovered when going through the elements.
         for (Element element : elements)
@@ -231,11 +235,7 @@ public class DownloaderUtilities
      */
     private static boolean hasAmbiguousSuffix(String address)
     {
-        if (address.endsWith(".html") || address.endsWith(".htm") || address.endsWith(".xhtml"))
-        {
-            return false;
-        }
-        return true;
+        return !address.endsWith(".html") && !address.endsWith(".htm") && !address.endsWith(".xhtml");
     }
 
     /**
@@ -301,16 +301,6 @@ public class DownloaderUtilities
         }
     }
 
-    private static void localizeMedia(Element element, String address)
-    {
-        String currentSrc = element.attr("src");
-        if (currentSrc.startsWith("/"))
-        {
-            element.attr("src", currentSrc.substring(1));
-            currentSrc = element.attr("src");
-        }
-    }
-
     /**
      * Takes an URL address string and tests whether the address string is a directory that also happens to serve
      * HTML content.
@@ -325,7 +315,7 @@ public class DownloaderUtilities
         {
             return true;
         }
-        URL url = null;
+        URL url;
         try
         {
             url = new URL(address + "/");
@@ -355,7 +345,6 @@ public class DownloaderUtilities
      */
     public static String getFileName(String address)
     {
-        String fileName = null;
         if (renameMap.containsKey(address))
         {
             address = renameMap.get(address);
@@ -371,7 +360,6 @@ public class DownloaderUtilities
         {
             return INDEX_HTML;
         }
-        //System.out.println(address + "-->"  + address.substring(lastSlashIndex));
         return address.substring(lastSlashIndex);
     }
 
@@ -402,7 +390,7 @@ public class DownloaderUtilities
         }
 
         // I forgot about Windows... good thing I remembered
-        String path = null;
+        String path;
         if (!File.separator.equals("/"))
         {
             path = stringPath.replaceAll("/", File.separator);
@@ -423,6 +411,10 @@ public class DownloaderUtilities
      */
     public static boolean canInitiateDownload(String address)
     {
+        if (! DownloaderUtilities.hasHTTPsProtocol(address))
+        {
+            address = HTTP + address;
+        }
         try
         {
             HttpURLConnection connection = (HttpURLConnection) new URL(address).openConnection();

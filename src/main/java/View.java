@@ -7,7 +7,7 @@ public class View
 {
     private JPanel panel;
     private JTextField input;
-    private JLabel label;
+    private JLabel downloadLabel;
     private JLabel webpageLabel;
     private JLabel numDownloadedLabel;
     private JLabel toBeDownloadedLabel;
@@ -16,6 +16,11 @@ public class View
     private Timer timer;
 
     private static final String TEXTFIELD_DEFAULT_MESSAGE = "Enter URL here:";
+    private static final String DOWNLOADLABEL_DEFAULT_MESSAGE = "No download in progress";
+    private static final String DOWNLOADLABEL_RUNNING_MESSAGE = "Downloading: ";
+    private static final String BUTTON_DEFAULT_MESSAGE = "Download";
+    private static final String BUTTON_RUNNING_MESSAGE = "Downloading ... ";
+    private static final String WEBPAGELABEL_DEFAULT_MESSAGE = "";
 
     /**
      * Creates and adds all components of the GUI to panel.
@@ -47,7 +52,7 @@ public class View
 
 
         // Button creation.
-        startButton = new JButton("Download");
+        startButton = new JButton(BUTTON_DEFAULT_MESSAGE);
         gbc = new GridBagConstraints();
         gbc.fill = GridBagConstraints.BOTH;
         gbc.gridwidth = 4;
@@ -60,10 +65,10 @@ public class View
 
 
         // Creating labels.
-        label = new JLabel("No download in progress.", SwingConstants.LEFT);
+        downloadLabel = new JLabel(DOWNLOADLABEL_DEFAULT_MESSAGE, SwingConstants.LEFT);
         gbc = makeLabelConstraint(2, 1);
         gbc.insets = new Insets(5,0,10,0);
-        panel.add(label, gbc);
+        panel.add(downloadLabel, gbc);
 
         webpageLabel = new JLabel("", SwingConstants.LEFT);
         panel.add(webpageLabel, makeLabelConstraint(2, GridBagConstraints.REMAINDER));
@@ -122,57 +127,76 @@ public class View
         return mb;
     }
 
-
     /**
-     *
+     * Displays a file chooser dialog.
+     * @return User selected directory in which JSoup will operate in.
      */
-    private void startDownload()
+    private File chooseSaveDirectory()
     {
         JFileChooser fc = new JFileChooser();
         fc.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-        int returnVal = fc.showOpenDialog(panel);
+        if (fc.showOpenDialog(panel) == JFileChooser.APPROVE_OPTION)
+        {
+            return fc.getSelectedFile();
+        }
+        return null;
+    }
 
+    /**
+     * Starts the downloading process via a SwingWorker.
+     * @param saveDirectory Root of the directory in which JGet operates; Directory in which the downloaded files will be placed.
+     */
+    private void startDownload(File saveDirectory)
+    {
         SwingWorker<String, Object> sw = new SwingWorker<>() {
             @Override
-            public String doInBackground() {
+            public String doInBackground()
+            {
+                setLabelRunning();
                 startButton.setEnabled(false);
+                panel.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
 
-                if (returnVal == JFileChooser.APPROVE_OPTION) {
-                    label.setText("Downloading: ");
-                    File selectedDir = fc.getSelectedFile();
-                    panel.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
-
-                    Downloader.runDownload(input.getText(), selectedDir.getAbsolutePath());
-
-                } else {
-                    startButton.setEnabled(true);
-                }
+                Downloader.runDownload(input.getText(), saveDirectory.getAbsolutePath());
                 return null;
+            }
+
+            @Override
+            protected void done()
+            {
+                startButton.setEnabled(true);
+                panel.setCursor(Cursor.getDefaultCursor());
+                setLabelDefaults();
+
+                timer.stop();
             }
         };
 
-        GUITimer timer = new GUITimer(e1 -> {
+        timer = new Timer(100, e1 -> {
             webpageLabel.setText(Downloader.getCurrentDownload());
             numDownloadedLabel.setText(String.valueOf(Downloader.getNumFilesDownloaded()));
             toBeDownloadedLabel.setText(String.valueOf(Downloader.getNumFilesToBeDownloaded()));
-
         });
-
-        /*Timer timer = new Timer(100, e1 -> {
-            webpageLabel.setText(Downloader.getCurrentDownload());
-            numDownloadedLabel.setText(String.valueOf(Downloader.getNumFilesDownloaded()));
-            toBeDownloadedLabel.setText(String.valueOf(Downloader.getNumFilesToBeDownloaded()));
-        });*/
         timer.start();
-
-        /*if (Downloader.getNumFilesDownloaded() > 0 && Downloader.getNumFilesToBeDownloaded() == 0)
-        {
-            timer.stop();
-            startButton.setEnabled(true);
-            panel.setCursor(Cursor.getDefaultCursor());
-        }*/
-
         sw.execute();
+    }
+
+    /**
+     * Sets label texts to default values.
+     */
+    private void setLabelDefaults()
+    {
+        downloadLabel.setText(DOWNLOADLABEL_DEFAULT_MESSAGE);
+        startButton.setText(BUTTON_DEFAULT_MESSAGE);
+        webpageLabel.setText(WEBPAGELABEL_DEFAULT_MESSAGE);
+    }
+
+    /**
+     * Sets label texts to "running messages". Running messages are defined as constants.
+     */
+    private void setLabelRunning()
+    {
+        downloadLabel.setText(DOWNLOADLABEL_RUNNING_MESSAGE);
+        startButton.setText(BUTTON_RUNNING_MESSAGE);
     }
 
     /**
@@ -185,8 +209,7 @@ public class View
 
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setPreferredSize(new Dimension(600, 190));
-        View view = new View();
-        Component panel = view.createComponents();
+        Component panel = (new View()).createComponents();
 
         frame.getContentPane().add(panel);
 
@@ -222,6 +245,11 @@ public class View
             showErrorPane("JGet is unable to connect to this address. Please double check the validity of this address.");
             return;
         }
-        startDownload();
+
+        File selectedDir = chooseSaveDirectory();
+        if (selectedDir != null)
+        {
+            startDownload(selectedDir);
+        }
     }
 }

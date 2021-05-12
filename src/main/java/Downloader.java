@@ -13,7 +13,6 @@ import javax.swing.*;
 
 public class Downloader
 {
-    private static String baseURL; // The url that is initially passed by the user
     private static String rootDir; // Directory to which files are downloaded to
 
     private static final Queue<String> discoveredURLs = new ArrayDeque<>(); // URLs which are yet to be downloaded
@@ -31,10 +30,13 @@ public class Downloader
      */
     public static void runDownload(String url, String dir)
     {
-        baseURL = url;
+        if (! DownloaderUtilities.hasHTTPsProtocol(url)) // TODO don't forget to document in the user documentation
+        {
+            url = DownloaderUtilities.HTTP + url; // prepend "http://"
+        }
+
         rootDir = dir;
-        DownloaderUtilities.setBaseURL(baseURL);
-        DownloaderUtilities.setRootDir(rootDir);
+        DownloaderUtilities.setBaseURL(url);
 
         discoveredURLs.add(url);
         String address;
@@ -111,15 +113,10 @@ public class Downloader
      */
     private static void downloadNonHTML(String address)
     {
-        HttpURLConnection connection = null; // self-note: not AutoCloseable
+        HttpURLConnection connection; // self-note: not AutoCloseable
         try
         {
             connection = (HttpURLConnection) (new URL(address)).openConnection();
-            /*if (connection.getContentLengthLong() > maxFileSize)
-            {
-                System.out.println("not downloading from " + address + " because it is over maxFileSize");
-                return;
-            }*/
         }
         catch (IOException e)
         {
@@ -153,16 +150,7 @@ public class Downloader
      */
     public static void main(String[] args)
     {
-        // validate url and do checking whether it has a scheme and such
-        String url = "https://kam.mff.cuni.cz/~fiala/";
-        if (! (url.startsWith("http://") || url.startsWith("https://")))
-        {
-            System.out.println("Please prefix the url with scheme \"http://\" and try again");
-            return;
-        }
-        //runDownload(url, "/Users/kasutaja/Desktop/jsoup/");
-        //runDownload("http://www.koopiatehas.ee", "/Users/kasutaja/Desktop/jsoup");
-        //runDownload("https://iuuk.mff.cuni.cz/~ipenev/", "/Users/kasutaja/Desktop/jsoup");
+
 
         SwingUtilities.invokeLater(View::createAndShowGUI);
     }
