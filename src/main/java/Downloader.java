@@ -1,8 +1,8 @@
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.HttpURLConnection;
 import java.net.URL;
-import java.net.URLConnection;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
@@ -19,24 +19,8 @@ public class Downloader
     private static final Queue<String> discoveredURLs = new ArrayDeque<>(); // URLs which are yet to be downloaded
     private static final Set<String> visitedURLs = new HashSet<>();
 
-    private static int maxDepth = -1;
-
-    public static int getNumFilesDownloaded() {
-        return numFilesDownloaded;
-    }
-    public static int getNumFilesToBeDownloaded()
-    {
-        return discoveredURLs.size();
-    }
-
     private static int numFilesDownloaded = 0;
-    private static final long maxFileSize = 0;
-
-    public static String getCurrentDownload() {
-        return currentDownload;
-    }
-
-    private static String currentDownload = "";
+    private static String currentDownload = ""; // Is accessed via a getter method by the GUI for information displaying purposes.
 
     /**
      * Runs the main downloading loop. Dequeues addresses from the URL queue and downloads them until there are no more addresses to download.
@@ -47,10 +31,10 @@ public class Downloader
      */
     public static void runDownload(String url, String dir)
     {
-        DownloaderUtilities.setBaseURL(url);
-        DownloaderUtilities.setRootDir(rootDir);
         baseURL = url;
         rootDir = dir;
+        DownloaderUtilities.setBaseURL(baseURL);
+        DownloaderUtilities.setRootDir(rootDir);
 
         discoveredURLs.add(url);
         String address;
@@ -123,16 +107,14 @@ public class Downloader
 
     /**
      * Downloads a non-HTML file.
-     * @param address
+     * @param address Address string from where we wish to download.
      */
     private static void downloadNonHTML(String address)
     {
-        URLConnection connection = null;
+        HttpURLConnection connection = null; // self-note: not AutoCloseable
         try
         {
-            System.out.println("Trying to open urlconnection to address: " + address);
-            connection = (new URL(address)).openConnection();
-            System.out.println("Successful.");
+            connection = (HttpURLConnection) (new URL(address)).openConnection();
             /*if (connection.getContentLengthLong() > maxFileSize)
             {
                 System.out.println("not downloading from " + address + " because it is over maxFileSize");
@@ -148,7 +130,6 @@ public class Downloader
         try (InputStream urlConnectionInputStream = new BufferedInputStream(connection.getInputStream()))
         {
             // transfer file directly to disk
-            System.out.println("executing non-html download");
             String fileName = DownloaderUtilities.getFileName(address);
             String path = DownloaderUtilities.getPath(address);
             Files.createDirectories(Paths.get(rootDir, path));
@@ -180,10 +161,10 @@ public class Downloader
             return;
         }
         //runDownload(url, "/Users/kasutaja/Desktop/jsoup/");
-        runDownload("http://www.koopiatehas.ee", "/Users/kasutaja/Desktop/jsoup");
+        //runDownload("http://www.koopiatehas.ee", "/Users/kasutaja/Desktop/jsoup");
         //runDownload("https://iuuk.mff.cuni.cz/~ipenev/", "/Users/kasutaja/Desktop/jsoup");
 
-        //SwingUtilities.invokeLater(View::createAndShowGUI);
+        SwingUtilities.invokeLater(View::createAndShowGUI);
     }
 
     /**
@@ -203,5 +184,30 @@ public class Downloader
     public static void enqueueURL(String address)
     {
         discoveredURLs.add(address);
+    }
+
+    /**
+     * Allows the View class to get the number of downloaded files.
+     * @return Integer value of number of files saved to disk.
+     */
+    public static int getNumFilesDownloaded() {
+        return numFilesDownloaded;
+    }
+
+    /**
+     * Allows the View class to read the size of the current download queue.
+     * @return Size of discoveredURLs queue.
+     */
+    public static int getNumFilesToBeDownloaded()
+    {
+        return discoveredURLs.size();
+    }
+
+    /**
+     * Allows the View class to read which file is currently being downloaded.
+     * @return Address string of currently downloaded page.
+     */
+    public static String getCurrentDownload() {
+        return currentDownload;
     }
 }

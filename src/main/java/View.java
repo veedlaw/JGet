@@ -1,9 +1,7 @@
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.FocusAdapter;
-import java.awt.event.FocusEvent;
+import java.awt.event.*;
+import java.io.File;
 
 public class View
 {
@@ -15,16 +13,22 @@ public class View
     private JLabel toBeDownloadedLabel;
 
     private JButton startButton;
-    private SwingWorker<String, Object> sw;
     private Timer timer;
 
+    private static final String TEXTFIELD_DEFAULT_MESSAGE = "Enter URL here:";
+
+    /**
+     * Creates and adds all components of the GUI to panel.
+     * @return The panel with the components.
+     */
     private Component createComponents() {
         panel = new JPanel(new GridBagLayout());
         panel.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
-        Color textFieldColor = new Color(166, 138, 138);
 
-        input = new JTextField("Enter URL here:");
-        input.setForeground(textFieldColor);
+        // Creating the address bar
+        input = new JTextField(TEXTFIELD_DEFAULT_MESSAGE); // Address bar where the user enters the URL
+        input.setForeground(new Color(105, 110, 106)); // Sets text color to gray
+
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.gridwidth = 4;
@@ -39,8 +43,10 @@ public class View
             }
         });
         panel.add(input, gbc);
+        // Address bar created above.
 
 
+        // Button creation.
         startButton = new JButton("Download");
         gbc = new GridBagConstraints();
         gbc.fill = GridBagConstraints.BOTH;
@@ -49,65 +55,54 @@ public class View
         gbc.weighty = 1;
         gbc.weightx = 1;
         panel.add(startButton, gbc);
-        startButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                startDownload();
-            }
-        });
+        startButton.addActionListener(this::buttonActionPerformed);
+        // Button has been created above.
 
-        /*bar = new JProgressBar(0, 100);
-        panel.add(bar);*/
 
+        // Creating labels.
         label = new JLabel("No download in progress.", SwingConstants.LEFT);
-        gbc = new GridBagConstraints();
-        gbc.gridy = 2;
-        gbc.anchor = GridBagConstraints.WEST;
+        gbc = makeLabelConstraint(2, 1);
         gbc.insets = new Insets(5,0,10,0);
         panel.add(label, gbc);
 
         webpageLabel = new JLabel("", SwingConstants.LEFT);
-        gbc = new GridBagConstraints();
-        gbc.gridy = 2;
-        gbc.anchor = GridBagConstraints.WEST;
-        gbc.gridwidth = GridBagConstraints.REMAINDER;
-        panel.add(webpageLabel, gbc);
+        panel.add(webpageLabel, makeLabelConstraint(2, GridBagConstraints.REMAINDER));
 
-        JLabel text1 = new JLabel("Number of files downloaded: ");
-        gbc = new GridBagConstraints();
-        gbc.gridy = 3;
-        gbc.anchor = GridBagConstraints.WEST;
-        panel.add(text1, gbc);
+        panel.add(new JLabel("Number of files downloaded: "), makeLabelConstraint(3, 1));
         numDownloadedLabel = new JLabel("0");
-        gbc = new GridBagConstraints();
-        gbc.gridy = 3;
-        gbc.gridwidth = GridBagConstraints.RELATIVE;
-        panel.add(numDownloadedLabel, gbc);
+        panel.add(numDownloadedLabel, makeLabelConstraint(3, GridBagConstraints.RELATIVE));
 
-        JLabel text2 = new JLabel("Number of files to be downloaded: ");
-        gbc = new GridBagConstraints();
-        gbc.gridy = 4;
-        gbc.anchor = GridBagConstraints.WEST;
-        panel.add(text2, gbc);
+        panel.add(new JLabel("Number of files to be downloaded: "), makeLabelConstraint(4, 1));
         toBeDownloadedLabel = new JLabel("0");
-        gbc = new GridBagConstraints();
-        gbc.gridy = 4;
-        gbc.anchor = GridBagConstraints.WEST;
-        gbc.gridwidth = GridBagConstraints.REMAINDER;
-        panel.add(toBeDownloadedLabel, gbc);
+        panel.add(toBeDownloadedLabel, makeLabelConstraint(4, GridBagConstraints.REMAINDER));
+        // Labels created above.
 
         return panel;
     }
 
-    private static void makeLabel()
+    /**
+     * Creates GridBagConstraints, is intended for use with aligning JLabels in the panel.
+     * @param gridY     Corresponds to GridBagConstraints gridy.
+     * @param gridWidth Corresponds to GridBagConstraints gridwidth.
+     * @return          GridBagConstraints with applied gridy and gridwith attributes.
+     */
+    private static GridBagConstraints makeLabelConstraint(int gridY, int gridWidth)
     {
+        // Reduces some repetitive code ...
         GridBagConstraints gbc = new GridBagConstraints();
-
+        gbc.gridy = gridY;
+        gbc.anchor = GridBagConstraints.WEST;
+        gbc.gridwidth = gridWidth;
+        return gbc;
     }
 
+    /**
+     * Creates the menu bar for the GUI.
+     * @return The set up menu bar.
+     */
     private static JMenuBar createMenu() {
         JMenuBar mb = new JMenuBar();
-        JMenu menu = new JMenu("Settings");
+        JMenu menu = new JMenu("File");
         JMenuItem item = new JMenuItem("Preferences");
         menu.add(item);
         item = new JMenuItem("Quit");
@@ -128,19 +123,30 @@ public class View
     }
 
 
-
+    /**
+     *
+     */
     private void startDownload()
     {
-        label.setText("Downloading: ");
+        JFileChooser fc = new JFileChooser();
+        fc.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+        int returnVal = fc.showOpenDialog(panel);
 
-        startButton.setEnabled(false);
-        panel.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
-
-        sw = new SwingWorker<>()
-        {
+        SwingWorker<String, Object> sw = new SwingWorker<>() {
             @Override
             public String doInBackground() {
-                Downloader.runDownload(input.getText(), "/Users/kasutaja/Desktop/jsoup");
+                startButton.setEnabled(false);
+
+                if (returnVal == JFileChooser.APPROVE_OPTION) {
+                    label.setText("Downloading: ");
+                    File selectedDir = fc.getSelectedFile();
+                    panel.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+
+                    Downloader.runDownload(input.getText(), selectedDir.getAbsolutePath());
+
+                } else {
+                    startButton.setEnabled(true);
+                }
                 return null;
             }
         };
@@ -190,4 +196,32 @@ public class View
         frame.requestFocusInWindow();
     }
 
+    /**
+     * Displays an error message in a separate window.
+     * @param message   Description of the error.
+     */
+    private void showErrorPane(String message)
+    {
+        JOptionPane.showMessageDialog(panel, message, "Error", JOptionPane.ERROR_MESSAGE);
+    }
+
+    /**
+     * Decides whether the downloading process will be started or alternatively an error pane will be shown describing the error.
+     * Executed when the button is pressed.
+     * @param e event
+     */
+    private void buttonActionPerformed(ActionEvent e)
+    {
+        if ("".equals(input.getText()) || TEXTFIELD_DEFAULT_MESSAGE.equals(input.getText()))
+        {
+            showErrorPane("Please enter a website address");
+            return;
+        }
+        if (!DownloaderUtilities.canInitiateDownload(input.getText()))
+        {
+            showErrorPane("JGet is unable to connect to this address. Please double check the validity of this address.");
+            return;
+        }
+        startDownload();
+    }
 }

@@ -5,6 +5,7 @@ import org.jsoup.select.Elements;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashMap;
@@ -29,7 +30,7 @@ public class DownloaderUtilities
     private static final String INDEX_HTML = "index.html";
     private static final String CONTENT_TYPE_HTML = "text/html";
 
-    private static HashSet<String> htmlAddresses = new HashSet<>();
+    private static final HashSet<String> htmlAddresses = new HashSet<>();
 
     // Used as a mapping between URLs and local URLs (preserving directory structure)
     public static final HashMap<String, String> renameMap = new HashMap<>();
@@ -65,7 +66,7 @@ public class DownloaderUtilities
      */
     public static boolean isHTML(String address)
     {
-        if (htmlAddresses.contains(address)) // testing in our cached addresses
+        if (htmlAddresses.contains(address)) // Checking within cached addresses
         {
             return true;
         }
@@ -73,11 +74,9 @@ public class DownloaderUtilities
         String receivedContentType;
         try
         {
-            System.out.println("(isHTML) address is " + address);
             String contentTypeResponse = ((new URL(address)).openConnection()).getContentType();
             if (contentTypeResponse == null || contentTypeResponse.length() < CONTENT_TYPE_HTML.length())
             {
-                System.out.println("RETURNING FASLE, because: " + contentTypeResponse);
                 return false;
             }
 
@@ -85,16 +84,15 @@ public class DownloaderUtilities
         }
         catch (IOException e)
         {
-            System.out.println("IOEXception occurred on: " + address);
             return false;
         }
-        System.out.println("Returning: " + CONTENT_TYPE_HTML + " == " + receivedContentType + " = " + CONTENT_TYPE_HTML.equals(receivedContentType));
         boolean isHtml = CONTENT_TYPE_HTML.equals(receivedContentType);
+
+        // Cache the true responses.
         if (isHtml)
         {
             htmlAddresses.add(address);
         }
-
 
         return isHtml;
     }
@@ -240,7 +238,6 @@ public class DownloaderUtilities
         return true;
     }
 
-
     /**
      * Key challenges to address:
      * 1) The url in the current document must be redirected
@@ -352,6 +349,7 @@ public class DownloaderUtilities
 
     /**
      * Derives the appropriate file name for storing a file that originates from the address string.
+     * All derivation is only based on the address string.
      * @param address URL address from which the file we are saving to disk originated from.
      * @return        Appropriate file name for storing the file on disk.
      */
@@ -379,6 +377,7 @@ public class DownloaderUtilities
 
     /**
      * Derives the appropriate local path of storing a file that originates from the address string.
+     * All derivation is based on the address string.
      * @param address   URL address from which we derive local path.
      * @return          String path relative to the root of our download directory.
      */
@@ -393,15 +392,10 @@ public class DownloaderUtilities
 
         if (lastSlashIndex == 6 || lastSlashIndex == 7 ) // means that the slash we discovered is in the http(s) part of the url
         {
-            // We can "append an imaginary" slash at the end of the url
-            lastSlashIndex = address.length();
+            lastSlashIndex = address.length();  // We can "append an imaginary" slash at the end of the url
         }
 
-        //System.out.println("lastslashindex: " + lastSlashIndex);
-        //System.out.println(address.substring(0, lastSlashIndex));
         String stringPath = getURLWithoutSchema(address.substring(0, lastSlashIndex));
-        //System.out.println(address.substring(0, lastSlashIndex));
-        //System.out.println("String path: " + stringPath);
         if (stringPath == null)
         {
             return null;
@@ -420,4 +414,28 @@ public class DownloaderUtilities
 
         return path;
     }
+
+    /**
+     * Checks whether we can connect to an address to decide whether it is reasonable to initiate downloading.
+     * https://stackoverflow.com/questions/3584210/preferred-java-way-to-ping-an-http-url-for-availability
+     * @param address   Address of which we check the availability of.
+     * @return          True if it is possible to connect to the webpage.
+     */
+    public static boolean canInitiateDownload(String address)
+    {
+        try
+        {
+            HttpURLConnection connection = (HttpURLConnection) new URL(address).openConnection();
+            connection.setConnectTimeout(1000);
+            connection.setReadTimeout(1000);
+            connection.setRequestMethod("HEAD");
+            int responseCode = connection.getResponseCode();
+            return (200 <= responseCode && responseCode <= 399);
+        }
+        catch (IOException exception)
+        {
+            return false;
+        }
+    }
+
 }
