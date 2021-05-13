@@ -1,3 +1,5 @@
+package com.veedlaw;
+
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -6,6 +8,9 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.logging.FileHandler;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 
 import org.jsoup.nodes.Document;
 
@@ -21,6 +26,8 @@ public class Downloader
     private static int numFilesDownloaded = 0;
     private static String currentDownload = ""; // Is accessed via a getter method by the GUI for information displaying purposes.
 
+    private static final Logger logger = Logger.getLogger("DownloadLog");
+
     /**
      * Runs the main downloading loop. Dequeues addresses from the URL queue and downloads them until there are no more addresses to download.
      * There are no more addresses to download once the queue is empty.
@@ -30,10 +37,11 @@ public class Downloader
      */
     public static void runDownload(String url, String dir)
     {
-        if (! DownloaderUtilities.hasHTTPsProtocol(url)) // TODO don't forget to document in the user documentation
+        if (! DownloaderUtilities.hasHTTPsProtocol(url))
         {
             url = DownloaderUtilities.HTTP + url; // prepend "http://"
         }
+        setUpLogging(dir, url);
 
         rootDir = dir;
         DownloaderUtilities.setBaseURL(url);
@@ -48,6 +56,24 @@ public class Downloader
         }
     }
 
+    private static void setUpLogging(String dir, String address)
+    {
+        try
+        {
+            System.setProperty("java.util.logging.SimpleFormatter.format",
+                    "[%1$tF %1$tT] [%4$-7s] %5$s %n");
+            Files.createDirectories(Paths.get(dir, DownloaderUtilities.getPath(address)));
+            FileHandler fileHandler = new FileHandler(Paths.get(dir, DownloaderUtilities.getPath(address), "log.txt").toString());
+            logger.addHandler(fileHandler);
+            fileHandler.setFormatter(new SimpleFormatter());
+            logger.setUseParentHandlers(false);
+        }
+        catch (IOException e)
+        {
+            e.printStackTrace();
+        }
+    }
+
     /**
      * Downloads a single file from an address. The file is saved to disk.
      * If the file is an HTML document, it is then searched for links.
@@ -55,7 +81,6 @@ public class Downloader
      */
     private static void download(String address)
     {
-        System.out.println("DOWNLOADING: " + address);
         currentDownload = address;
         visitedURLs.add(address);
         if (DownloaderUtilities.isHTML(address))
@@ -69,13 +94,12 @@ public class Downloader
             else // We were unable to fetch the document
             {
                 // Since we were unable to fetch the HTML document, we will download the file manually
-                System.out.println("downloading manually");
+                logger.info("Unable to fetch HTML from " + address + "; Initiating manual download");
                 downloadNonHTML(address);
             }
         }
         else
         {
-            System.out.println("(Non-HTML) DOWNLOADING: " + address);
             downloadNonHTML(address);
         }
     }
@@ -88,7 +112,7 @@ public class Downloader
      */
     private static void downloadHTML(Document htmlDocument, String address)
     {
-        System.out.println("downloading: " + address);
+        logger.info("Downloading HTML document from: " + address);
         // Save document to disk
         // The folder we are saving to is the name of the url
         String fileName = DownloaderUtilities.getFileName(address);
@@ -102,9 +126,8 @@ public class Downloader
         }
         catch (IOException e)
         {
-            e.printStackTrace();
+            logger.severe("Unable to download: " + address);
         }
-        System.out.println();
     }
 
     /**
@@ -113,6 +136,7 @@ public class Downloader
      */
     private static void downloadNonHTML(String address)
     {
+        logger.info("Downloading file from: " + address);
         HttpURLConnection connection; // self-note: not AutoCloseable
         try
         {
@@ -120,7 +144,7 @@ public class Downloader
         }
         catch (IOException e)
         {
-            e.printStackTrace(); // TODO
+            logger.severe("Unable to connect to: " + address);
             return;
         }
 
@@ -136,9 +160,7 @@ public class Downloader
         }
         catch (IOException e)
         {
-            System.out.println("(NonHTML) " + e); // TODO
-            System.out.println(e.getMessage());
-            e.printStackTrace();
+            logger.severe("Failed to download from: " + address);
         }
     }
 
@@ -150,13 +172,11 @@ public class Downloader
      */
     public static void main(String[] args)
     {
-
-
         SwingUtilities.invokeLater(View::createAndShowGUI);
     }
 
     /**
-     * Allows DownloaderUtilities class to query the contents of visitedURLs collection.
+     * Allows com.veedlaw.DownloaderUtilities class to query the contents of visitedURLs collection.
      * @param address String for which we wish to check the existence of in visitedURLs set.
      * @return True if "address" is present in visitedURLs.
      */
@@ -166,7 +186,7 @@ public class Downloader
     }
 
     /**
-     * Allows to enqueue an address from the DownloaderUtilities class.
+     * Allows to enqueue an address from the com.veedlaw.DownloaderUtilities class.
      * @param address An URL address which we wish to enqueue.
      */
     public static void enqueueURL(String address)
@@ -175,7 +195,7 @@ public class Downloader
     }
 
     /**
-     * Allows the View class to get the number of downloaded files.
+     * Allows the com.veedlaw.View class to get the number of downloaded files.
      * @return Integer value of number of files saved to disk.
      */
     public static int getNumFilesDownloaded() {
@@ -183,7 +203,7 @@ public class Downloader
     }
 
     /**
-     * Allows the View class to read the size of the current download queue.
+     * Allows the com.veedlaw.View class to read the size of the current download queue.
      * @return Size of discoveredURLs queue.
      */
     public static int getNumFilesToBeDownloaded()
@@ -192,7 +212,7 @@ public class Downloader
     }
 
     /**
-     * Allows the View class to read which file is currently being downloaded.
+     * Allows the com.veedlaw.View class to read which file is currently being downloaded.
      * @return Address string of currently downloaded page.
      */
     public static String getCurrentDownload() {

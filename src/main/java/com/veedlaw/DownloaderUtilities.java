@@ -1,3 +1,5 @@
+package com.veedlaw;
+
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -117,7 +119,6 @@ public class DownloaderUtilities
         }
         catch (IOException e)
         {
-            System.out.println("(fetchDocument) IO exception: " + address);
             return null;
         }
     }
@@ -210,28 +211,15 @@ public class DownloaderUtilities
                     localizeLink(element, address, attrKey);
 
                 }
-
-                // An annoying edge case is addressed here:
-                // Suppose we have some webpage "http://www.example.com/mypage" that serves html content.
-                // If this webpage were to have the following structure: "http://www.example.com/mypage/pictures/picture1.png",
-                // then we would first download and create a file "mypage", however this will leave us unable to later
-                // create a directory "mypage/pictures/" as "mypage" is already a file.
-                // To preserve website consistency, whenever such situation is detected, we modify the underlying HTML
-                // such that in our local copy, all links to "mypage" are directed to "mypage/index.html". The file is then
-                // saved in the directory "mypage" with the filename "index.html" This allows us to preserve website
-                // hierarchy locally when downloading a website.
-                /*if (isHTML(address))
-                {
-                    localizeLink(element, address);
-                }*/
             }
         }
     }
 
     /**
-     *
-     * @param address
-     * @return
+     * Is only called in the context that the passed address string is known to be of content-type "text/html"
+     * Checks whether address has HTML file type describing suffix.
+     * @param address   The address string which is checked
+     * @return          True if address string ends with HTML file type describing suffix
      */
     private static boolean hasAmbiguousSuffix(String address)
     {
@@ -239,14 +227,10 @@ public class DownloaderUtilities
     }
 
     /**
-     * Key challenges to address:
-     * 1) The url in the current document must be redirected
-     * 2) The url in future documents must be redirected --> each document we store to disk must be checked for urls?
-     * 3) These changes must be propagated to directory structure
-     *
-     * makes the links point relatively to our local folder structure
-     *
-     * @param address
+     * Makes the links point relative to our local folder structure, making web pages browsable locally.
+     * @param element   JSoup HTML element which has to be modified
+     * @param address   The address where the HTML file is located, which element's we are modifying
+     * @param attrKey   HTML element attribute key
      */
     private static void localizeLink(Element element, String address, String attrKey) {
         attrKey = attrKey.substring("abs:".length());
@@ -276,8 +260,6 @@ public class DownloaderUtilities
         {
             if (isDirectory(address))
             {
-                //System.out.println("The following address is deemed a directory: " + address);
-                //System.out.println("\t The href is: " + currentHref);
                 if (!address.endsWith("/"))
                 {
                     element.attr("href", currentHref + "/" + INDEX_HTML);
@@ -288,9 +270,6 @@ public class DownloaderUtilities
                     element.attr("href", currentHref + INDEX_HTML);
                     renameMap.put(address, address + INDEX_HTML);
                 }
-                //System.out.println("\t The href has been changed to: " + element.attr("href"));
-                //System.out.println("\t The address has been renamed from: " + address  + " to -> (see below)");
-                //System.out.println("\t\t\t\t " + renameMap.get(address));
             }
             else if (getURLWithoutSchema(currentHref) == null)
             {
@@ -350,7 +329,6 @@ public class DownloaderUtilities
             address = renameMap.get(address);
         }
         int lastSlashIndex = address.lastIndexOf('/');
-        // TODO double check
         if (lastSlashIndex == 6 || lastSlashIndex == 7 ) // means that the slash we discovered is in the http(s) part of the url
         {
             // We can "append an imaginary" slash at the end of the url
