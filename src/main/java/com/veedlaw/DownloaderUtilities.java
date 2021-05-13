@@ -194,7 +194,6 @@ public class DownloaderUtilities
         {
             // An URL address is found some attribute of the html element. An appropriate attribute is selected via attrKey.
             address = element.attr(attrKey);
-            System.out.println("\t extracted address: " + address + " href=" + element.attr("href"));
             if (renameMap.containsKey(address))
             {
                 localizeLink(element, address, attrKey); // changes the element in htmlDocument
@@ -236,11 +235,9 @@ public class DownloaderUtilities
         attrKey = attrKey.substring("abs:".length());
 
         String currentHref = element.attr(attrKey);
-        //System.out.println("Current HREF is " + currentHref + " on address " + address);
 
         if (currentHref.startsWith("/")) // means that the href is relative to the root of the URL
         {
-            //System.out.println("Absolute URL href: " + currentHref);
             element.attr(attrKey, currentHref.substring(1)); // exclude the slash for localization purposes
             currentHref = element.attr(attrKey);
         }
