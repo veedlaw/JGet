@@ -16,6 +16,9 @@ import org.jsoup.nodes.Document;
 
 import javax.swing.*;
 
+/**
+ * Contains methods that handle the core part of the downloading and saving process.
+ */
 public class Downloader
 {
     private static String rootDir; // Directory to which files are downloaded to
@@ -39,7 +42,7 @@ public class Downloader
     {
         if (! DownloaderUtilities.hasHTTPsProtocol(url))
         {
-            url = DownloaderUtilities.HTTP + url; // prepend "http://"
+            url = "http://" + url;
         }
         setUpLogging(dir, url);
 
@@ -56,6 +59,11 @@ public class Downloader
         }
     }
 
+    /**
+     * Sets up logging capabilities for the downloader
+     * @param dir       Base directory of the download; used for placing the log file in the correct directory
+     * @param address   Address string of the initial download; used for placing the log file in th correct directory
+     */
     private static void setUpLogging(String dir, String address)
     {
         try
@@ -176,7 +184,7 @@ public class Downloader
     }
 
     /**
-     * Allows com.veedlaw.DownloaderUtilities class to query the contents of visitedURLs collection.
+     * Allows DownloaderUtilities class to query the contents of visitedURLs collection.
      * @param address String for which we wish to check the existence of in visitedURLs set.
      * @return True if "address" is present in visitedURLs.
      */
@@ -186,7 +194,7 @@ public class Downloader
     }
 
     /**
-     * Allows to enqueue an address from the com.veedlaw.DownloaderUtilities class.
+     * Allows to enqueue an address from the DownloaderUtilities class.
      * @param address An URL address which we wish to enqueue.
      */
     public static void enqueueURL(String address)
@@ -195,7 +203,7 @@ public class Downloader
     }
 
     /**
-     * Allows the com.veedlaw.View class to get the number of downloaded files.
+     * Allows the View class to get the number of downloaded files.
      * @return Integer value of number of files saved to disk.
      */
     public static int getNumFilesDownloaded() {
@@ -203,7 +211,7 @@ public class Downloader
     }
 
     /**
-     * Allows the com.veedlaw.View class to read the size of the current download queue.
+     * Allows the View class to read the size of the current download queue.
      * @return Size of discoveredURLs queue.
      */
     public static int getNumFilesToBeDownloaded()
@@ -212,7 +220,7 @@ public class Downloader
     }
 
     /**
-     * Allows the com.veedlaw.View class to read which file is currently being downloaded.
+     * Allows the View class to read which file is currently being downloaded.
      * @return Address string of currently downloaded page.
      */
     public static String getCurrentDownload() {

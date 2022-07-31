@@ -13,24 +13,23 @@ import java.net.URL;
 import java.util.HashMap;
 import java.util.HashSet;
 
+/**
+ * Contains various useful helper methods for downloading webpages.
+ */
 public class DownloaderUtilities
 {
-    public static void setBaseURL(String baseURL)
-    {
-        DownloaderUtilities.baseURL = baseURL;
-    }
-
     private static String baseURL = null;
 
-    public static final String HTTP = "http://";
+    private static final String HTTP = "http://";
     private static final String HTTPS = "https://";
     private static final String INDEX_HTML = "index.html";
     private static final String CONTENT_TYPE_HTML = "text/html";
 
+    // Used as a cache for addresses that have been verified to be of the content-type "text/html"
     private static final HashSet<String> htmlAddresses = new HashSet<>();
 
     // Used as a mapping between URLs and local URLs (preserving directory structure)
-    public static final HashMap<String, String> renameMap = new HashMap<>();
+    private static final HashMap<String, String> renameMap = new HashMap<>();
 
     /**
      * Takes an address string and returns that string with the HTTP(s) scheme removed.
@@ -405,4 +404,12 @@ public class DownloaderUtilities
         }
     }
 
+    /**
+     * Makes the baseURL field accessible to set to the class
+     * @param baseURL The URL which the user passed and has been validated.
+     */
+    public static void setBaseURL(String baseURL)
+    {
+        DownloaderUtilities.baseURL = baseURL;
+    }
 }

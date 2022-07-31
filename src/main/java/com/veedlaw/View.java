@@ -5,6 +5,9 @@ import java.awt.*;
 import java.awt.event.*;
 import java.io.File;
 
+/**
+ * Contains all code pertaining to the graphical user interface.
+ */
 public class View
 {
     private JPanel panel;
